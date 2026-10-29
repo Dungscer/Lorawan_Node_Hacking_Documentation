@@ -1,0 +1,25 @@
+35:OTA: manifest version=5 total_bytes=250 session=3871269452
+36:OTA: manifest accepted, erasing staging (main loop), ready for data
+61:OTA: seq 0 ok, 50/250 bytes received (write queued)
+86:OTA: seq 1 ok, 100/250 bytes received (write queued)
+111:OTA: seq 2 ok, 150/250 bytes received (write queued)
+136:OTA: seq 3 ok, 200/250 bytes received (write queued)
+161:OTA: seq 4 ok, 250/250 bytes received (write queued)
+164:OTA: whole-image SHA-256 verified OK
+165:OTA: image staged and verified - activation NOT implemented, see README
+253:OTA: manifest version=6 total_bytes=600 session=1742455355
+254:OTA: manifest accepted, erasing staging (main loop), ready for data
+279:OTA: seq 0 ok, 50/600 bytes received (write queued)
+304:OTA: seq 1 ok, 100/600 bytes received (write queued)
+329:OTA: seq 2 ok, 150/600 bytes received (write queued)
+354:OTA: seq 3 ok, 200/600 bytes received (write queued)
+379:OTA: seq 4 ok, 250/600 bytes received (write queued)
+404:OTA: seq 5 ok, 300/600 bytes received (write queued)
+429:OTA: seq 6 ok, 350/600 bytes received (write queued)
+444:OTA: seq 7 ok, 400/600 bytes received (write queued)
+469:OTA: seq 8 ok, 450/600 bytes received (write queued)
+494:OTA: seq 9 ok, 500/600 bytes received (write queued)
+519:OTA: seq 10 ok, 550/600 bytes received (write queued)
+544:OTA: seq 11 ok, 600/600 bytes received (write queued)
+547:OTA: whole-image SHA-256 verified OK
+548:OTA: image staged and verified - activation NOT implemented, see README
