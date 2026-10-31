@@ -1,0 +1,39 @@
+# otaa_secure Ed25519 manifest verification - hardware evidence (2026-10-31)
+
+## A) valid signature (version 5) -> accepted
+OTA: manifest version=5 total_bytes=250 session=1395537311
+OTA: manifest received, verifying signature (main loop)...
+OTA: manifest signature VERIFIED (Ed25519)
+OTA: erasing staging (main loop), ready for data
+OTA: seq 0 ok, 50/250 bytes received (write queued)
+OTA: seq 1 ok, 100/250 bytes received (write queued)
+OTA: seq 2 ok, 150/250 bytes received (write queued)
+OTA: seq 3 ok, 200/250 bytes received (write queued)
+OTA: seq 4 ok, 250/250 bytes received (write queued)
+OTA: received-stream SHA-256 OK, verifying W25Q content...
+OTA: whole-image SHA-256 verified OK (read back from W25Q)
+OTA: image staged and verified - activation NOT implemented, see README
+
+push:
+│ Status            SUCCESS                                                    │
+│ Chunks sent       5/5                                                        │
+│ Elapsed           56.9s                                                      │
+
+## B) tampered signature (version 6, 1 bit flipped) -> rejected
+OTA: manifest version=6 total_bytes=250 session=398758306
+OTA: manifest received, verifying signature (main loop)...
+OTA: manifest signature INVALID - update rejected
+OTA: data frame received with no active manifest, ignored
+OTA: data frame received with no active manifest, ignored
+OTA: data frame received with no active manifest, ignored
+OTA: data frame received with no active manifest, ignored
+OTA: data frame received with no active manifest, ignored
+
+## C) valid signature but older version 4 (persisted=5) -> anti-rollback reject
+OTA: manifest version=4 total_bytes=250 session=2969775892
+OTA: rejected, version 4 <= persisted 5 (anti-rollback)
+OTA: data frame received with no active manifest, ignored
+OTA: data frame received with no active manifest, ignored
+OTA: data frame received with no active manifest, ignored
+OTA: data frame received with no active manifest, ignored
+OTA: data frame received with no active manifest, ignored
