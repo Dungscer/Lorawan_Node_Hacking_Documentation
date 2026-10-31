@@ -57,3 +57,32 @@ külön bootloader). Döntés a rendelkezésre álló idő függvénye.
    az aktiváció igazolt hardveren.
 4. Negatív eset: szándékosan rossz kép / megszakított másolás viselkedése (A-nál ez
    a téglásodás, B-nél a recovery) - dokumentálandó.
+
+## Döntés (2026-10-31): B opció - bootloader + app-áthelyezés
+A prioritás a robusztusság (a board nem cserélhető, terepi tápkimaradás se
+téglásodjon). A saját fejlesztői flashelés nem veszélyes: az ST-Link
+`--connect-under-reset` bármilyen app-állapot fölé újraír; option byte-okhoz nem
+nyúlok. Recovery: a known-good single-image `.bin`-ek.
+
+### Rögzített memória-elrendezés
+- Bootloader: `0x08000000`, 32 KB (`0x08000000..0x08008000`). Az OTA soha nem írja.
+- App: `0x08008000`-tól, VTOR ide állítva. App-régió vége a flag- és NVM-lapok
+  alatt: `0x08008000..0x0803D000` (~212 KB). A jelenlegi ~125-131 KB képek beleférnek.
+- Aktiváció-flag lap: `0x0803D000` (2 KB, FLASH-ben = tápkimaradás-biztos).
+- Anti-rollback lap: `0x0803D800` (változatlan). LoRaWAN NVM: `0x0803F000`-tól.
+
+### Flag-tartalom (az app írja staging+verify után, majd reset)
+`magic | image_len | sha256(32)`. A bootloader bootkor: ha a magic beállítva ->
+W25Q -> app-régió másolás, a másolt kép SHA-256-ellenőrzése; csak egyezésnél
+törli a flaget és ugrik; ha a másolás megszakadt (tápkimaradás), a flag megmarad,
+a W25Q-kép ép -> következő bootkor újrapróbál. Így nincs téglásodás.
+
+### Fázisok (mind hardveren igazolva, külön)
+1. App-relokáció `0x08008000`-ra (linker + VTOR) + minimál csak-ugró bootloader
+   `0x08000000`-nál. Igazolás: a node a bootloaderen át bootol és joinol. (Nincs
+   még másoló logika -> nulla kockázat a flash-tartalomra.)
+2. Bare-register belső-flash író + a W25Q->app másoló + flag a bootloaderbe;
+   app-oldali "set flag + reset" trigger. Igazolás: aktiváció egy felismerhetően
+   más képpel.
+3. Negatív/robusztusság: megszakított másolás -> következő bootkor újrapróbál
+   (nem téglásodik).
