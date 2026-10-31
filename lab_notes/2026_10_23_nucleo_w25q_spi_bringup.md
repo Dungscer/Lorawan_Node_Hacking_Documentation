@@ -261,4 +261,4 @@ módon), külön `verify_ctx`-be hasheli, és ezt veti össze a manifest sha256-
 `whole-image SHA-256 verified OK (read back from W25Q)`. A push SUCCESS (12/12, 0 retry,
 122 s), a node a verify után tovább ad. A fogadási lánc és a flash-tartalom mostantól
 külön-külön is igazolt; eltérésük (ha a jövőben előjön) megkülönbözteti a transzfer-
-hibát a flash-írási hibától. Többszektoros (>4 KiB) image-et továbbra sem teszteltem.
+hibát a flash-írási hibától. Többszektoros image is átment: egy 4500 B-os (2 szektor, `--chunk-size 100`, 45 chunk) push SUCCESS 0 retry, a node a readback után `whole-image SHA-256 verified OK (read back from W25Q)`-t adott (ennek a futásnak az UART-ja karakter-garbled volt, de ez a két záró OTA-sor tisztán átjött, és a push 45/45 kézbesítése független igazolás).

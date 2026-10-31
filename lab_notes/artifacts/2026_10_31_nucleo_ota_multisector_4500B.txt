@@ -1,0 +1,12 @@
+# 4500 B (2-sector) OTA push, 2026-10-31 - --chunk-size 100
+
+## ChirpStack push (authoritative):
+│ Status            SUCCESS                                                    │
+│ Chunks sent       45/45                                                      │
+│ Total retries     0                                                          │
+│ Elapsed           475.6s                                                     │
+
+## Node UART (this run was character-garbled; these OTA lines survived intact):
+OTA: image staged and verified - activation NOT implemented, see README
+OTA: whole-image SHA-256 verified OK (read back from W25Q)
+highest chunk seq seen: seq 44 ok
