@@ -60,3 +60,18 @@ SWD / hiányzó RTL-SDR mellett). A board ezután visszaállítva működő kép
 ugrás), Fázis 2 (W25Q->app másolás + SHA-256 verify + flag + app-oldali trigger),
 és a Fázis 3 tápkimaradás-biztos retry logikája (a flag csak sikeres verify után
 törlődik) a kódban kész; utóbbi szándékos megszakítással külön is kipróbálható.
+
+## secure + aktiváció együtt (teljes lánc, igazolva)
+A `otaa_secure` relokált buildjét (Ed25519-kapu + anti-rollback) aktivációval
+összeépítve (v1s) is végigvittem: egy v100-ként aláírt teszt-képet pusholtam.
+A node végig élt és feldolgozott (ChirpStack `last_seen` friss a tranzfer alatt),
+a manifest után a chunk-ok folytak - tehát az Ed25519-verify a main-loopban
+átment, különben a chunk-okat eldobta volna. A finish után a flag-lap beállt
+(magic `0xA5F10ACA`, len 1080). A bootloadert futni hagyva (reset + release) az
+app-régió `0x08008000` tartalma a pusholt képre változott (`sha256 d0616459…`), a
+flag törlődött - a teljes "aláírt OTA -> stage -> verify -> aktiváció" lánc egyben.
+
+Módszertani megjegyzés: az `st-flash --connect-under-reset` resetkor leállítja a
+magot, így olvasáskor a bootloader nem fut le; a telepítés megfigyeléséhez előbb
+reset + release kell (`--reset reset`), és csak utána visszaolvasni. Emiatt
+olvastam elsőre tévesen "még nincs telepítve" állapotot.
