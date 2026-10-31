@@ -75,3 +75,19 @@ Módszertani megjegyzés: az `st-flash --connect-under-reset` resetkor leállít
 magot, így olvasáskor a bootloader nem fut le; a telepítés megfigyeléséhez előbb
 reset + release kell (`--reset reset`), és csak utána visszaolvasni. Emiatt
 olvastam elsőre tévesen "még nincs telepítve" állapotot.
+
+## Fázis 3 - tápkimaradás-biztos recovery (igazolva, 2026-11-01)
+A megszakított másolás utáni állapotot izoláltan reprodukáltam: st-flash-sel
+elrontottam az app-régió elejét (`0x08008000`-ra `0xAA` bájtok -> SP/reset
+érvénytelen, mintha egy másolás félbemaradt volna), a flag-lapot épen beállítottam
+(magic + len=1080 + a W25Q-n lévő kép helyes sha256-ja), a W25Q-kép érintetlen.
+Reset + release után a bootloader a flaget látva **újratelepített a W25Q-ról**: az
+app-régió visszaolvasott tartalma a helyes kép (`sha256 d0616459…`), a flag
+törlődött. Tehát egy félkész/elrontott app-régió + ép flag + ép W25Q-kép esetén a
+következő bootkor a telepítés magától befejeződik - **nincs téglásodás**, ez a
+single-bank STM32WL-en a bootloader+relokáció út lényege.
+
+Ezzel az aktiváció mindhárom fázisa hardveren igazolt: Fázis 1 (relokáció + ugrás),
+Fázis 2 (W25Q->flash telepítés + SHA-256 verify), Fázis 3 (tápkimaradás-biztos
+recovery). A saját flashelés amúgy sem téglásíthat: az ST-Link under-reset bármilyen
+állapot fölé újraír.
