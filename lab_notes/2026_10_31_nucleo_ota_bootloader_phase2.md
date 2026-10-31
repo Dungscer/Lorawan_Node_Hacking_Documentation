@@ -36,3 +36,27 @@ az egyetlen független jel. A boardot visszaállítottam ismert-jó standalone k
   elakad - ez a bemérendő pont.
 - A saját flashelés nem téglásítja a boardot: az ST-Link under-reset bármilyen
   app-állapot fölé újraír.
+
+## Helyesbítés: az aktiváció MŰKÖDIK (end-to-end igazolva)
+A fenti "elakadt a manifest után" értelmezés téves volt. Utólag st-flash-sel
+visszaolvastam az app-régiót (`0x08008000`), és a tartalma **bitre a pusholt
+teszt-kép**: `sha256 = d0616459d80d773936429e23b399fa60c70be32856b297dc9a27553f565095bd`,
+pontosan a `dummy_v2.bin` hash-e; a flag-lap (`0x0803D000`) pedig törölve
+(`0xFFFFFFFF`). Tehát a teljes lánc lefutott: az app fogadta az image-et, W25Q-ra
+stagelte és igazolta, flaget írt + resetelt; a bootloader a W25Q-ról az app-régióba
+másolt, SHA-256-tal igazolta, és törölte a flaget.
+
+Amit tévesen "node-elakadásnak" olvastam, az a **telepített teszt-kép** volt: az
+szándékosan csak egy végtelen ciklus (nincs benne LoRaWAN), ezért nem joinol, és a
+ChirpStack `last_seen` elavul - ez a telepített kép futásának a jele, nem hiba. A
+rá következő push pedig már ennek a ciklus-képnek ment, ami nem dolgoz fel OTA-t,
+innen a "stall". A reset sem hozott vissza "működő node-ot", mert a telepített kép
+maga a ciklus-kép.
+
+A perdöntő jel itt az st-flash visszaolvasott hash volt (a flaky VCP / letiltott
+SWD / hiányzó RTL-SDR mellett). A board ezután visszaállítva működő képre.
+
+Így a bootloader+relokáció aktiváció mindhárom fázisa megvan: Fázis 1 (relokáció +
+ugrás), Fázis 2 (W25Q->app másolás + SHA-256 verify + flag + app-oldali trigger),
+és a Fázis 3 tápkimaradás-biztos retry logikája (a flag csak sikeres verify után
+törlődik) a kódban kész; utóbbi szándékos megszakítással külön is kipróbálható.
