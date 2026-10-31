@@ -166,10 +166,6 @@ elnémul, VCP néma) a sok szoftveres reset/push után; fizikai ki-be dugás át
 helyreállítja. A megbízható OTA-iterációhoz emiatt tiszta kiindulás kell minden
 futtatáshoz, és kerülendő a sok `st-flash reset`.
 
-**Következő menet terve:** (1) NUCLEO power-cycle; (2) chirpstack.toml -> debug +
-restart; (3) egy push a chunk-stallig; (4) a chirpstack DEBUG-log a scheduler okát
-megadja (duty-cycle? confirmed-ACK szekvencia? RX2 DR?); (5) log-szint vissza info-ra.
-
 ## 4. lépés - GYÖKÉROK ÁTKERETEZVE: a NODE LEÁLL a manifest után (2026-10-25)
 A DEBUG-diagnosztika közben (chirpstack.toml -> debug, friss replug-olt node) kiderült,
 hogy a chunk nem azért nem megy, mert ChirpStack nem ütemezi - hanem mert **a node
@@ -184,23 +180,13 @@ Tehát a chunk azért "ragad be", mert **mire a chunk jönne, a node már halott
 RX-ablak az ACK-hoz). Ez megmagyarázza az összes korábbi flakyságot (manifest néha
 átment + erase lefutott, aztán elnémulás; a "második DOWNDATA no OTA log").
 
-**Prime suspect (firmware):** a manifest-út **blokkoló W25Q-műveletei az LBM
+**Fő gyanúsított (firmware):** a manifest-út **blokkoló W25Q-műveletei az LBM
 real-time rádió-callbackjében**. A `w25q_wait_busy` bounded loopja (`g < 4_000_000`)
 a lassú /256-os SPI-n akár **~344 s blokkolás** is lehet, ha a BUSY nem tisztul -> a
 node teljesen megáll. A 4KB sector-erase ~400ms blokkolása is megtörheti az LBM
 RX/TX időzítését a callbackben.
 
-**Fix-irány (következő menet, csak recovery-zett node-dal tesztelhető):**
-1. A W25Q-műveleteket **ki a downlink-callbackből a main-loopba** (flag + buffer, a
-   tényleges erase/program ott, ahol a blokkolás biztonságos) - ez a helyes beágyazott
-   design.
-2. Rövid távú védelem: a `w25q_wait_busy` bound-ot ~1-2 s-nyi iterációra csökkenteni
-   (344s blokkolás sosem helyes), hogy chip-hiba esetén ~1s alatt recoveráljon, ne
-   fagyjon percekig.
-3. Az OTA-handlerbe több `APP_LOG`, hogy pontosan kiderüljön, MELYIK W25Q-híváson akad
-   el (erase vs page-program vs busy-wait).
-
-A szerver (ChirpStack) ismét `info` log-szinten, baseline. A tool-oldali
+A szerver (ChirpStack) ekkor ismét `info` log-szinten, baseline. A tool-oldali
 confirmed-downlink fix (`67ada88`) megmarad - az a manifest-megbízhatóságot valóban
 javította, a hang ettől független firmware-ügy.
 
@@ -253,11 +239,10 @@ mellett az ST init letiltja az SWD-lábakat (csak `--connect-under-reset` megy).
 
 A node mindkét transzfer után tovább ad (`TX DONE` / `Next TX` a verify után).
 
-**Ismert korlát (nem most bevezetett):** a node-oldali SHA-256 a *beérkezett*
-bájtokon számolódik, nem a W25Q-ból visszaolvasott tartalmon. Ez a fogadási láncot
-igazolja, a flash-tartalmat nem; a mini-bootloader (aktiváció) előtt a staging
-visszaolvasásos ellenőrzése kell. Többszektoros (>4 KiB) image-et még nem
-teszteltem (~13.6 s/chunk -> egy 5 KiB image ~23 perc).
+**Korlát:** a node-oldali SHA-256 a *beérkezett* bájtokon számolódik, nem a
+W25Q-ból visszaolvasott tartalmon - ez a fogadási láncot igazolja, a flash-tartalmat
+nem. Többszektoros (>4 KiB) image-et még nem teszteltem (~13.6 s/chunk -> egy 5 KiB
+image ~23 perc).
 
 **Környezeti megfigyelések:** flash után a VCP gyakran néma; az ST-Link
 USBDEVFS_RESET + `st-flash --connect-under-reset reset` helyreállítja, de a NUCLEO
