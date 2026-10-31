@@ -247,3 +247,18 @@ image ~23 perc).
 **Környezeti megfigyelések:** flash után a VCP gyakran néma; az ST-Link
 USBDEVFS_RESET + `st-flash --connect-under-reset reset` helyreállítja, de a NUCLEO
 VCP ekkor más `ttyACM` számot kaphat (most `ttyACM0`, korábban `ttyACM1`).
+
+## 6. lépés - a staging tartalmának visszaolvasásos ellenőrzése (2026-10-31)
+Az 5. lépés korlátja az volt, hogy a node-oldali SHA-256 a *beérkezett* bájtokon
+futott, nem a flashbe ténylegesen beírt tartalmon. Hozzáadtam egy `OTA_FLASH_READBACK`
+fázist az `OTA_Update_Process()` állapotgéphez: miután az utolsó lap is kiíródott és a
+beérkezett-stream hash stimmel, a node a teljes staged image-et visszaolvassa a W25Q-ból
+(laponként egy olvasás main-loop iterációnként, a többi lépéssel azonos nem-blokkoló
+módon), külön `verify_ctx`-be hasheli, és ezt veti össze a manifest sha256-tal.
+
+600 B-os image (12 chunk) valódi hardveren, a node UART-ján egymás után:
+`received-stream SHA-256 OK, verifying W25Q content...` majd
+`whole-image SHA-256 verified OK (read back from W25Q)`. A push SUCCESS (12/12, 0 retry,
+122 s), a node a verify után tovább ad. A fogadási lánc és a flash-tartalom mostantól
+külön-külön is igazolt; eltérésük (ha a jövőben előjön) megkülönbözteti a transzfer-
+hibát a flash-írási hibától. Többszektoros (>4 KiB) image-et továbbra sem teszteltem.

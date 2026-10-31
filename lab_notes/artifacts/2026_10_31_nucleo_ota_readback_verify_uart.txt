@@ -1,0 +1,17 @@
+OTA: manifest version=6 total_bytes=600 session=3419237495
+OTA: manifest accepted, erasing staging (main loop), ready for data
+OTA: seq 0 ok, 50/600 bytes received (write queued)
+OTA: seq 1 ok, 100/600 bytes received (write queued)
+OTA: seq 2 ok, 150/600 bytes received (write queued)
+OTA: seq 3 ok, 200/600 bytes received (write queued)
+OTA: seq 4 ok, 250/600 bytes received (write queued)
+OTA: seq 5 ok, 300/600 bytes received (write queued)
+OTA: seq 6 ok, 350/600 bytes received (write queued)
+OTA: seq 7 ok, 400/600 bytes received (write queued)
+OTA: seq 8 ok, 450/600 bytes received (write queued)
+OTA: seq 9 ok, 500/600 bytes received (write queued)
+OTA: seq 10 ok, 550/600 bytes received (write queued)
+OTA: seq 11 ok, 600/600 bytes received (write queued)
+OTA: received-stream SHA-256 OK, verifying W25Q content...
+OTA: whole-image SHA-256 verified OK (read back from W25Q)
+OTA: image staged and verified - activation NOT implemented, see README
