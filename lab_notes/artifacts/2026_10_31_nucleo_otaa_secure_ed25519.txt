@@ -37,3 +37,15 @@ OTA: data frame received with no active manifest, ignored
 OTA: data frame received with no active manifest, ignored
 OTA: data frame received with no active manifest, ignored
 OTA: data frame received with no active manifest, ignored
+
+## D) basic tier, SAME tampered-signature manifest (version 6) -> ACCEPTED (no signature enforcement)
+OTA: manifest version=6 total_bytes=250 session=1376914529
+OTA: manifest accepted, erasing staging (main loop), ready for data
+OTA: seq 0 ok, 50/250 bytes received (write queued)
+OTA: seq 1 ok, 100/250 bytes received (write queued)
+OTA: seq 2 ok, 150/250 bytes received (write queued)
+OTA: seq 3 ok, 200/250 bytes received (write queued)
+OTA: seq 4 ok, 250/250 bytes received (write queued)
+OTA: received-stream SHA-256 OK, verifying W25Q content...
+OTA: whole-image SHA-256 verified OK (read back from W25Q)
+OTA: image staged and verified - activation NOT implemented, see README

@@ -52,3 +52,19 @@ A node-oldali SHA-256 a readback után a W25Q-tartalmon fut (ez igazolt), de az
 aláírás csak a manifest `sha256` mezejét köti a képhez; a staged kép és a manifest
 `sha256` egyezését a whole-image hash adja, az aláírás pedig e hash hitelességét.
 Az aktiváció (a stagelt kép tényleges futtatása) továbbra sincs megírva.
+
+## basic vs. secure, ugyanazzal a manipulált manifesttel
+Ugyanazt a v6-os, egy bitben elrontott aláírású manifestet (a kép bájtjai és a
+manifest `sha256`-ja érvényes, csak az aláírás nem) mindkét tier-re rápusholtam:
+
+- **`otaa_basic`:** `manifest accepted` -> staging -> `whole-image SHA-256 verified
+  OK (read back from W25Q)`. A basic nem néz aláírást, így elfogadja - egy privát
+  kulccsal nem rendelkező támadó is rá tud tolni egy képet, amíg a `sha256`
+  önkonzisztens.
+- **`otaa_secure`:** `manifest signature INVALID - update rejected`, a chunkokat
+  eldobja.
+
+Ez a két futás egymás mellett mutatja az aláírt OTA értékét: azonos bemenet, a
+basic elfogadja, a secure visszautasítja. (A push-oldali SUCCESS mindkét esetben
+félrevezető lehet, mert a confirmed downlinkeket a MAC-réteg nyugtázza; a döntés a
+node-logban látszik.)
