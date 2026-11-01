@@ -1096,16 +1096,93 @@ frissítés metaadatait leíró manifesztum -- pontosan a három elv, amit a
 tesztkörnyezetben implementáltunk és hardveren
 igazoltunk~\cite{rfc9019, rfc9124}.
 
-\paragraph{Aláírt manifeszt, anti-rollback, chunk-szintű integritás.} A
-frissítési protokoll aláírt manifeszttel indul, majd darabolt (chunk)
-adatátvitellel folytatódik, munkamenet-azonosítóval (session ID) és
-chunk-szintű CRC8-cal, a teljes image SHA-256 ellenőrzésével lezárva. Egy
-teljes, megszakítás nélküli, hardveres tesztfuttatásban mind a 6 adatkeret
-session ID-je és CRC8-a helyesnek bizonyult, a teljes átvitel SHA-256
-hash-e pontosan egyezett az aláírt manifesztben szereplő értékkel, és a
-végső, natív image-validáció (chip-ID ellenőrzés) is a várt módon utasította
-el a szintetikus (nem valós firmware-t tartalmazó) tesztadatot -- vagyis a
-védelem minden rétege külön-külön, kimutathatóan működött.
+\paragraph{Teljes frissítési lánc külső flash-stagingen.} A frissítési
+protokoll aláírt manifeszttel indul, majd darabolt (chunk) adatátvitellel
+folytatódik munkamenet-azonosítóval és chunk-szintű CRC8-cal; a lezárás a
+teljes image SHA-256 ellenőrzése. Mivel a vizsgált integrált MCU+rádió eszköz
+256~KB-os, egybankos belső flash-e nem elegendő egyszerre a futó és egy teljes
+staging-image tárolására, a frissítendő képet egy külső SPI NOR flash-re
+(W25Q64) stageljük. A teljes átvitelt több méretben igazoltuk hardveren:
+250~B, 600~B (flash-lap határát átlépő) és 4500~B (több flash-szektort érintő)
+image, mindegyik hibátlanul, újraküldés nélkül. A vevő a stagelés lezárása után
+a képet \emph{vissza is olvassa} a külső flash-ből, és ennek a tartalomnak a
+SHA-256-át veti össze a manifeszttel -- így nem csupán a beérkezett bájtfolyam,
+hanem a ténylegesen flash-be írt tartalom helyessége is bizonyított.
+
+A megvalósítás során egy, az integrált rádiós architektúrára jellemző, nem
+nyilvánvaló hibát is azonosítottunk és javítottunk: a flash-műveletek szinkron
+(blokkoló) végrehajtása -- akár a rádiós megszakítás-kezelőben, akár a
+főciklusban -- elegendő ideig feltartotta a LoRaWAN-protokollvermet ahhoz, hogy
+az eszköz lefagyjon. A megoldás egy nem-blokkoló, a főciklusból lépkedő
+állapotgép, kiegészítve azzal a felismeréssel, hogy az alacsony fogyasztású
+STOP2 üzemmód nem őrzi meg a SPI-periféria konfigurációját, ezért azt minden
+ébredés után újra kell inicializálni.
+
+\begin{table}[H]
+\centering
+\caption{Hardveres OTA-átviteli mérések (NUCLEO-WL55JC1, külső W25Q-staging, nyugtázott downlink)}
+\begin{tabular}{rrrrl}
+\toprule
+Image méret & Chunk & Újraküldés & Idő & Eredmény \\
+\midrule
+250~B & 5 & 0 & \textasciitilde57~s & SHA-256 egyezés (visszaolvasva) \\
+600~B & 12 & 0 & \textasciitilde137~s & SHA-256 egyezés (flash-lap határát átlépő) \\
+4500~B & 45 & 0 & \textasciitilde476~s & SHA-256 egyezés (több flash-szektor) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Aláírás-ellenőrzés és anti-rollback.} A megerősített (secure) tier a
+manifeszt Ed25519-aláírását ténylegesen ellenőrzi egy, a firmware-be ágyazott
+publikus kulccsal (auditált, a protokollverembe illesztett TweetNaCl
+implementációval); a számításigényes ellenőrzés a főciklusban fut, nem a valós
+idejű rádiós megszakítás-kezelőben. Három hardveres mérés igazolta a működést:
+érvényes aláírású kép elfogadása és stagelése; egyetlen bitjében rontott aláírás
+elutasítása (\texttt{signature INVALID}); valamint egy, a már elfogadottnál nem
+újabb verziószámú kép elutasítása (anti-rollback). Ez utóbbi egyúttal a
+verziószám belső flash-be való, újraindítás-tűrő perzisztálását is igazolta.
+
+\begin{table}[H]
+\centering
+\caption{A megerősített (secure) OTA-tier aláírás- és anti-rollback-döntései hardveren}
+\begin{tabular}{lll}
+\toprule
+Bemenet & Elvárt viselkedés & Mért eredmény \\
+\midrule
+Érvényes aláírás, újabb verzió & elfogadás & stagelve, SHA-256 OK \\
+Egy bitben rontott aláírás & elutasítás & \texttt{signature INVALID} \\
+A perzisztáltnál nem újabb verzió & elutasítás & anti-rollback elutasítás \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Sérülékeny és megerősített tier kontrasztja.} A hardening hatása
+közvetlenül, azonos bemeneten mérhető. Ugyanazt az érvénytelen aláírású
+manifesztet az aláírást nem ellenőrző tier \emph{elfogadja} és stageli, a
+megerősített tier \emph{elutasítja}. Hasonlóan, a 6.\ fejezet
+AppKey-brute-force támadását egy szándékosan gyenge (alapértelmezett, csupa
+nulla) kulcsú végpont ellen lefuttatva a kulcs egy elfogott Join~Requestből a
+másodperc töredéke alatt helyreállt, míg a véletlenszerű kulcsú, megerősített
+végpont ugyanazzal a támadással szemben ellenállt. Számszerűen: a gyenge
+kulcs a szótáras fázisban a másodperc töredéke alatt (\textasciitilde0{,}01~s)
+helyreállt, míg a megerősített végpont kulcsa 20 szótár-jelölt után sem adódott --
+egy véletlenszerű 128~bites kulcs kimerítő keresése pedig gyakorlatilag
+kivitelezhetetlen.
+
+\paragraph{Image-aktiváció -- tápkimaradás-tűrő bootloader.} A stagelt kép
+futóvá tételét (aktiváció) az egybankos flash miatt nem lehet hardveres A/B
+bank-váltással megoldani. Erre egy kisméretű saját bootloadert valósítottunk
+meg a flash elején, az alkalmazást pedig mögé helyeztük át (relokáció, a
+megszakítás-vektortábla áthelyezésével). A bootloader indításkor egy jelzőlapot
+olvas; ha frissítés van függőben, a külső flash-ből az alkalmazás-régióba
+másolja a képet, SHA-256-tal újraellenőrzi, és csak sikeres ellenőrzés után
+törli a jelzőt és adja át a vezérlést az új firmware-nek. Mivel a jelző csak az
+ellenőrzés után törlődik, a forráskép pedig a külső flash-en marad, egy másolás
+közbeni tápkimaradás a következő indításkor automatikusan újrapróbálódik -- az
+eszköz nem válik működésképtelenné. A teljes láncot (aláírt kép fogadása,
+stagelés, aktiváció) és a szándékosan megszakított másolás utáni helyreállást is
+igazoltuk hardveren: az aktiváció után a belső flash tartalma bitre megegyezett
+a feltöltött képpel.
 
 \paragraph{Munkamenet-izolláció -- véletlenül reprodukált pozitív eset.} Egy
 megszakadt, majd új munkamenettel újraindított átvitel során az eszköz
@@ -1126,15 +1203,13 @@ használt, ideiglenes, teljes admin-jogú API-kulcsot egy állandó,
 tenant-szintre korlátozott kulcsra cseréltük, amelynek működését valódi,
 regisztrált eszközön is megerősítettük.
 
-\paragraph{Mért, még nyitott korlát.} A hardveres teszt egy tényleges
-megbízhatósági rést is felszínre hozott: a hálózati szerver a downlink
-\emph{kiküldését} (queue kiürülését) jelzi sikeresként, nem az eszköz
-tényleges \emph{vételét} -- egy mérésben a szerver 6/6 chunk sikeres
-kézbesítését jelezte, miközben az eszköz naplója szerint csak 4 érkezett
-meg ténylegesen. Ez konkrét, mért bizonyíték arra, hogy megbízható OTA-hoz
-nyugtázott (confirmed) downlink vagy alkalmazásszintű ACK szükséges --
-ez jelenleg nincs bevezetve, a 9.\ fejezet jövőbeli irányai között
-szerepel.
+\paragraph{Kézbesítési megbízhatóság.} Egy korábbi mérésben a hálózati
+szerver a downlink \emph{kiküldését} (a várakozási sor kiürülését) jelezte
+sikeresként, nem az eszköz tényleges \emph{vételét} -- egy esetben 6/6 chunk
+sikeres kézbesítését jelezte, miközben az eszköz naplója szerint kevesebb
+érkezett meg. Ezt a hamis-pozitív jelzést nyugtázott (confirmed) downlinkek
+bevezetésével oldottuk meg, amivel a kézbesítés ténylegesen megbízhatóvá vált; a
+fenti, megszakítás nélküli teljes átvitelek már ezzel a mechanizmussal futottak.
 
 % -----------------------------------------------------------------------
 \section{Összefoglalás és jövőbeli kutatási irányok}
@@ -1166,6 +1241,21 @@ meg és értékeltünk egy kontrollált tesztkörnyezetben:
 Az eredmények megerősítik, hogy a LoRaWAN kriptográfiai védelme erős, de
 a fizikai eszközbiztonság és a kulcsmenedzsment gyengeségei szignifikáns
 kockázatot jelentenek a valós telepítésekben.
+
+A támadások mellett a megfelelő ellenintézkedéseket is megvalósítottuk és
+hardveren igazoltuk (8.\ fejezet), így a hardening hatása nem csupán elvben,
+hanem mérhetően is kimutatható. Kiemelten: az integrált rádiós
+(STM32WL-osztályú) végponton felépítettünk egy teljes, biztonságos
+firmware-frissítési láncot -- külső SPI-flash alapú staging, aláírt (Ed25519)
+manifeszt, anti-rollback, a flash-ből visszaolvasott tartalom
+integritás-ellenőrzése, és egy tápkimaradás-tűrő saját bootloader az
+aktiváláshoz --, amelyet az aláírt kép fogadásától a telepítésig végig
+igazoltunk. A védelem hatékonyságát pozitív kontrollal mértük: ugyanaz a támadás
+(érvénytelen aláírású kép, illetve gyenge kulcs elleni AppKey-brute-force) a
+szándékosan gyenge konfigurációjú végpontot kompromittálja, a megerősített,
+azonos platformú végpont viszont ellenáll. Ez közvetlen, azonos bemeneten mért
+bizonyíték arra, hogy a feltárt kockázatok a szokásos kulcs- és
+frissítés-hardeninggel ténylegesen kezelhetők.
 
 \subsection{Kiegészítő eredmények: hálózatszerver- és keretszintű vizsgálatok}
 
@@ -1205,17 +1295,6 @@ a vizsgált LoRaWAN-keretelemző robusztusan kezelte ezeket.
 \subsection{Jövőbeli kutatási irányok}
 
 \begin{itemize}
-    \item \textbf{Nyugtázott (confirmed) OTA-downlink bevezetése:} a mért
-    hamis-pozitív kézbesítési jelzés (ld.\ 8.5.\ alfejezet) kiküszöbölése
-    confirmed downlinkkel vagy alkalmazásszintű ACK-kal.
-    \item \textbf{OTA integrált rádiós (STM32WL-osztályú) csomóponton:} a
-    mérések szerint a vizsgált integrált MCU+rádió eszköz 256~KB-os,
-    egybankos belső flash-e nem elegendő a teljes-image (A/B) OTA-hoz --
-    a futó és a staging-image együtt nem fér el, és nincs hardveres
-    bank-váltás az aktiváláshoz. Ennek feloldása külső SPI-flash alapú
-    staging + saját másodlagos bootloader, vagy a gyártói biztonságos
-    frissítési keret (ST SBSFU) bevonása; ez a rész önálló tervezési
-    és megvalósítási feladat.
     \item \textbf{LoRaWAN~1.1 biztonsági értékelése:} a DevNonce-kezelés és
     a JoinEUI mechanizmus vizsgálata a LoRaWAN~1.1-es specifikáció alapján.
     \item \textbf{Bit-flipping és MIC-hamisítás:} NwkSKey nélküli csomagmódosítás
